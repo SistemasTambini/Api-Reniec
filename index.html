@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Sistema de Colas — Kiosco & Pantalla</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0f172a;        /* slate-900 */
+      --panel:#111827;     /* gray-900 */
+      --muted:#334155;     /* slate-700 */
+      --text:#e5e7eb;      /* gray-200 */
+      --sub:#94a3b8;       /* slate-400 */
+      --pri:#22c55e;       /* green-500 */
+      --pri-2:#16a34a;     /* green-600 */
+      --warn:#f59e0b;      /* amber-500 */
+      --err:#ef4444;       /* red-500 */
+      --ok:#10b981;        /* emerald-500 */
+      --card:#0b1220;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:linear-gradient(180deg,#0b1220 0%, #0f172a 100%);
+      color:var(--text); font-family:system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      display:flex; align-items:center; justify-content:center;
+      padding:24px;
+    }
+    .app{width:min(1100px,100%); display:grid; gap:18px}
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      background:var(--panel); padding:16px 20px; border-radius:var(--radius);
+      box-shadow:var(--shadow); border:1px solid #1f2937;
+    }
+    header h1{margin:0;font-size:22px; letter-spacing:.3px}
+    header .mode{font-size:13px; color:var(--sub); background:#0b1324; padding:6px 10px; border-radius:999px; border:1px solid #1e293b}
+    .grid{
+      display:grid; grid-template-columns: 1fr 1fr; gap:18px;
+    }
+    .card{
+      background:var(--panel); border:1px solid #1f2937; border-radius:var(--radius);
+      box-shadow:var(--shadow); padding:20px;
+    }
+    .hidden{display:none !important}
+
+    /* Kiosco */
+    .servicios{display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin:14px 0 8px}
+    .btn{
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      padding:16px; border-radius:16px; border:1px solid #233047;
+      background:linear-gradient(180deg,#0f1b31,#0e1626);
+      color:#e5e7eb; font-weight:600; cursor:pointer; transition:.15s transform, .2s border, .2s box-shadow;
+      user-select:none;
+    }
+    .btn:hover{transform:translateY(-1px); border-color:#2b3c5c; box-shadow:0 10px 24px rgba(10,20,40,.35)}
+    .btn:active{transform:translateY(0)}
+    .btn[data-prefix="A"]{outline:2px solid rgba(34,197,94,.15)}
+    .btn[data-prefix="P"]{outline:2px solid rgba(245,158,11,.15)}
+    .btn[data-prefix="E"]{outline:2px solid rgba(59,130,246,.15)}
+
+    .dni-form{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
+    .dni-form input{
+      flex:1 1 240px; padding:14px 12px; border-radius:12px;
+      background:#0b1324; color:var(--text);
+      border:1px solid #203049; font-size:16px; letter-spacing:.5px;
+    }
+    .dni-form input:focus{outline:none; border-color:#2b3c5c; box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+    .dni-form button{
+      padding:14px 18px; border-radius:12px; border:1px solid #1e293b;
+      background:linear-gradient(180deg,#1a2e1f,#14351f);
+      color:#d1fae5; font-weight:700; cursor:pointer; letter-spacing:.4px;
+    }
+    .help{color:var(--sub); font-size:13px; margin-top:6px}
+
+    .ticket-preview{margin-top:16px; background:#0b1220; border:1px dashed #263246; padding:14px; border-radius:14px}
+    .ticket-code{font-size:28px; font-weight:800; letter-spacing:1.2px}
+    .ok{color:var(--ok)}
+    .err{color:var(--err)}
+
+    /* Pantalla */
+    .now{
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:radial-gradient(1200px 450px at 50% -10%, rgba(34,197,94,.06), transparent 60%),
+                 linear-gradient(180deg,#0f172a,#0b1220);
+      border:1px solid #203049; border-radius:var(--radius); padding:26px; min-height:240px;
+    }
+    .now .code{font-size:62px; font-weight:900; letter-spacing:2px; margin:0}
+    .now .name{font-size:28px; margin:4px 0 0; color:#cbd5e1}
+    .list{margin-top:14px}
+    .list h3{margin:0 0 8px; font-size:16px; color:var(--sub)}
+    .items{display:grid; gap:10px}
+    .item{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:12px 14px; border:1px solid #203049; background:#0b1324; border-radius:12px;
+      font-size:15px; color:#cbd5e1;
+    }
+    .ops{display:flex; gap:10px; margin-top:14px}
+    .ops .btn-op{
+      padding:12px 14px; border-radius:12px; border:1px solid #22324d;
+      background:linear-gradient(180deg,#142536,#111b2a);
+      color:#e5e7eb; font-weight:700; cursor:pointer;
+    }
+    .badge{font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #2a3b56; color:#94a3b8}
+    .footer-note{color:#64748b; font-size:12px; text-align:right}
+    .sr{position:absolute; width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+    @media (max-width:980px){ .grid{grid-template-columns: 1fr} }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🎫 Sistema de Colas</h1>
+      <div class="mode" id="modeLabel">Kiosco</div>
+    </header>
+
+    <!-- Kiosco -->
+    <section id="kiosco" class="card">
+      <h2 style="margin-top:0">1) Selecciona tu tipo de ticket</h2>
+      <div class="servicios" id="servicios">
+        <button class="btn" data-servicio="Atención General" data-prefix="A">A — Atención General</button>
+        <button class="btn" data-servicio="Preferencial" data-prefix="P">P — Preferencial</button>
+        <button class="btn" data-servicio="Empresas" data-prefix="E">E — Empresas</button>
+      </div>
+
+      <h2 style="margin:14px 0 8px">2) Ingresa tu DNI</h2>
+      <form class="dni-form" id="dniForm">
+        <input id="dni" type="text" inputmode="numeric" maxlength="8" minlength="8" placeholder="DNI (8 dígitos)" required />
+        <button type="submit">💾 Generar Ticket</button>
+      </form>
+      <div class="help">Se validará tu identidad y generaremos tu ticket.</div>
+
+      <div id="estado" class="help"></div>
+      <div id="ticketPrev" class="ticket-preview hidden"></div>
+    </section>
+
+    <!-- Pantalla de llamados -->
+    <section id="pantalla" class="card hidden" aria-live="polite" aria-atomic="true">
+      <div class="now">
+        <p class="sr">Ahora atendiendo</p>
+        <h2 id="nowCode" class="code">—</h2>
+        <div id="nowName" class="name">Esperando siguiente turno…</div>
+        <div id="nowServicio" class="badge" style="margin-top:10px">—</div>
+      </div>
+
+      <div class="list">
+        <h3>En cola</h3>
+        <div id="colaUI" class="items"></div>
+      </div>
+
+      <div class="ops">
+        <button class="btn-op" id="btnNext">▶️ Llamar siguiente</button>
+        <button class="btn-op" id="btnClear">🗑️ Limpiar todo</button>
+      </div>
+
+      <div class="footer-note">Tip: abra esta pantalla en un televisor/monitor (este mismo archivo con <b>#pantalla</b> en la URL).</div>
+    </section>
+  </div>
+
+  <script>
+    // ================== Config ==================
+    const API_URL = "http://192.168.1.20:3019/api/scrape/dni"; // tu endpoint
+    const KEY_COLA = "colaTickets";
+    const KEY_ATENDIENDO = "atendiendo";
+    const KEY_SEQ = "ticketSeq";
+    const KEY_SEQ_DATE = "ticketSeqDate";
+    const HOY = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+
+    // ================== Utils ==================
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    function getCola(){
+      try { return JSON.parse(localStorage.getItem(KEY_COLA) || "[]"); }
+      catch{ return []; }
+    }
+    function setCola(cola){
+      localStorage.setItem(KEY_COLA, JSON.stringify(cola));
+      // Notificar a otras pestañas mediante storage event implícito
+    }
+    function getAtendiendo(){
+      try { return JSON.parse(localStorage.getItem(KEY_ATENDIENDO) || "null"); }
+      catch{ return null; }
+    }
+    function setAtendiendo(t){
+      localStorage.setItem(KEY_ATENDIENDO, JSON.stringify(t));
+    }
+
+    function nextSeq(prefix){
+      // reinicia diario
+      const last = localStorage.getItem(KEY_SEQ_DATE);
+      if(last !== HOY){
+        localStorage.setItem(KEY_SEQ_DATE, HOY);
+        localStorage.setItem(KEY_SEQ, JSON.stringify({}));
+      }
+      const obj = JSON.parse(localStorage.getItem(KEY_SEQ) || "{}");
+      obj[prefix] = (obj[prefix] || 0) + 1;
+      localStorage.setItem(KEY_SEQ, JSON.stringify(obj));
+      return obj[prefix];
+    }
+
+    function pad(n, size=3){ return String(n).padStart(size,"0"); }
+    function genCodigo(prefix){
+      // prefijo + secuencia diaria; agrega 1 dígito aleatorio para evitar colisiones en recargas extremas
+      const seq = nextSeq(prefix);
+      const rnd = Math.floor(Math.random()*9);
+      return `${prefix}-${pad(seq,3)}${rnd}`;
+    }
+
+    // === Audio de sistema de colas sin archivos (WebAudio) ===
+const QueueAudio = (() => {
+  let ctx, master, comp;
+
+  function ensureCtx() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      comp = ctx.createDynamicsCompressor();
+      comp.threshold.setValueAtTime(-24, ctx.currentTime);
+      comp.knee.setValueAtTime(30, ctx.currentTime);
+      comp.ratio.setValueAtTime(12, ctx.currentTime);
+      comp.attack.setValueAtTime(0.003, ctx.currentTime);
+      comp.release.setValueAtTime(0.25, ctx.currentTime);
+
+      master = ctx.createGain();
+      master.gain.value = 0.9;
+
+      // Delay muy suave como “sala”
+      const delay = ctx.createDelay(0.4);
+      delay.delayTime.value = 0.18;
+      const fb = ctx.createGain();
+      fb.gain.value = 0.25;
+      const wet = ctx.createGain();
+      wet.gain.value = 0.35;
+
+      // Cadena: master -> [dry + (delay->fb->delay)] -> destino
+      master.connect(comp);
+      comp.connect(ctx.destination);
+      master.connect(delay);
+      delay.connect(fb);
+      fb.connect(delay);
+      delay.connect(wet);
+      wet.connect(comp);
+    }
+  }
+
+  // Nota con envolvente y ligera modulación
+  function playNote({ freq=880, type="sine", t=0, dur=0.25, gain=0.8 }) {
+    ensureCtx();
+    const start = ctx.currentTime + t;
+    const stop  = start + dur;
+
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    const filt = ctx.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.value = 8000;
+
+    // Envolvente (ADSR corto)
+    const a = 0.01, d = 0.06, s = 0.5, r = 0.12;
+    const peak = gain, sustain = gain * s;
+
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(peak, start + a);
+    g.gain.linearRampToValueAtTime(sustain, start + a + d);
+    g.gain.exponentialRampToValueAtTime(0.0001, stop + r);
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+
+    // Ligero vibrato para darle “vida”
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.value = 6; // 6 Hz
+    lfoGain.gain.value = 3;  // ±3 Hz
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    osc.connect(filt);
+    filt.connect(g);
+    g.connect(master);
+
+    osc.start(start);
+    lfo.start(start);
+    osc.stop(stop + r + 0.01);
+    lfo.stop(stop + r + 0.02);
+  }
+
+  // Reproduce una melodía (arreglo de notas)
+  function playMelody(notes) {
+    ensureCtx();
+    // Por si el contexto quedó “suspendido”
+    if (ctx.state === "suspended") ctx.resume().catch(()=>{});
+    notes.forEach(n => playNote(n));
+  }
+
+  return { playMelody };
+})();
+
+// Melodías por tipo (A, P, E) – cada una ~0.8s
+function playCallTone(prefix = "A") {
+  // Utilizamos tipos distintos para “firma” sonora
+  const baseGain = 0.85;
+  const A = [
+    { freq: 880,  type: "sine",    t: 0.00, dur: 0.22, gain: baseGain },
+    { freq: 1174, type: "triangle",t: 0.12, dur: 0.22, gain: baseGain * 0.95 },
+    { freq: 880,  type: "sine",    t: 0.26, dur: 0.28, gain: baseGain },
+  ];
+  const P = [
+    { freq: 659,  type: "triangle",t: 0.00, dur: 0.22, gain: baseGain },
+    { freq: 880,  type: "sine",    t: 0.14, dur: 0.22, gain: baseGain * 0.95 },
+    { freq: 1319, type: "sine",    t: 0.28, dur: 0.28, gain: baseGain },
+  ];
+  const E = [
+    { freq: 784,  type: "square",  t: 0.00, dur: 0.18, gain: baseGain * 0.9 },
+    { freq: 988,  type: "square",  t: 0.12, dur: 0.18, gain: baseGain * 0.85 },
+    { freq: 1319, type: "square",  t: 0.24, dur: 0.26, gain: baseGain * 0.8  },
+  ];
+  const melody = prefix === "P" ? P : prefix === "E" ? E : A;
+  QueueAudio.playMelody(melody);
+}
+
+
+    function renderPantalla(){
+      const ahora = getAtendiendo();
+      const cola = getCola();
+
+      $("#nowCode").textContent = ahora ? ahora.codigo : "—";
+      $("#nowName").textContent = ahora ? `${ahora.nombres} ${ahora.apellidoPaterno}` : "Esperando siguiente turno…";
+      $("#nowServicio").textContent = ahora ? ahora.servicio : "—";
+
+      const cont = $("#colaUI");
+      cont.innerHTML = "";
+      cola.slice(0,8).forEach(t=>{
+        const div = document.createElement("div");
+        div.className="item";
+        div.innerHTML = `
+          <span><b>${t.codigo}</b> — ${t.nombres} ${t.apellidoPaterno}</span>
+          <span class="badge">${t.servicio}</span>
+        `;
+        cont.appendChild(div);
+      });
+    }
+
+    function callNext(){
+      const cola = getCola();
+      if(cola.length===0){
+        setAtendiendo(null);
+        renderPantalla();
+        return;
+      }
+      const next = cola.shift();
+      setCola(cola);
+      setAtendiendo(next);
+      playCallTone(next.prefix);
+      renderPantalla();
+    }
+
+    // ================== Modo (Kiosco vs Pantalla) ==================
+    const isPantalla = location.hash.toLowerCase().includes("pantalla");
+    $("#modeLabel").textContent = isPantalla ? "Pantalla" : "Kiosco";
+    $("#kiosco").classList.toggle("hidden", isPantalla);
+    $("#pantalla").classList.toggle("hidden", !isPantalla);
+
+    // ================== Kiosco ==================
+    let servicioSel = { nombre:null, prefix:null };
+
+    $$("#servicios .btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        $$("#servicios .btn").forEach(b=>b.style.borderColor="#233047");
+        btn.style.borderColor = "var(--pri)";
+        servicioSel.nombre = btn.dataset.servicio;
+        servicioSel.prefix = btn.dataset.prefix;
+      });
+    });
+
+    $("#dniForm").addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const dni = $("#dni").value.trim();
+      const estado = $("#estado");
+      const prev = $("#ticketPrev");
+
+      prev.classList.add("hidden");
+      estado.textContent = "";
+      if(!servicioSel.prefix){
+        estado.innerHTML = `<span class="err">Selecciona primero un tipo de ticket.</span>`;
+        return;
+      }
+      if(!/^\d{8}$/.test(dni)){
+        estado.innerHTML = `<span class="err">El DNI debe tener 8 dígitos.</span>`;
+        return;
+      }
+
+      estado.innerHTML = `Consultando DNI…`;
+      try{
+        const resp = await fetch(API_URL,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({dni})
+        });
+        if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+
+        // Validaciones mínimas
+        if(!data || !data.nombres || !data.apellidoPaterno){
+          throw new Error("Respuesta incompleta del servicio.");
+        }
+
+        const codigo = genCodigo(servicioSel.prefix);
+        const ticket = {
+          codigo,
+          dni,
+          servicio: servicioSel.nombre,
+          prefix: servicioSel.prefix,
+          nombres: data.nombres,
+          apellidoPaterno: data.apellidoPaterno,
+          apellidoMaterno: data.apellidoMaterno || "",
+          ts: Date.now()
+        };
+
+        const cola = getCola();
+        cola.push(ticket);
+        setCola(cola);
+
+        estado.innerHTML = `<span class="ok">✅ Ticket generado correctamente.</span>`;
+        prev.classList.remove("hidden");
+        prev.innerHTML = `
+          <div><b>Tu ticket:</b> <span class="ticket-code">${ticket.codigo}</span></div>
+          <div><b>Nombre:</b> ${ticket.nombres} ${ticket.apellidoPaterno}</div>
+          <div><b>Servicio:</b> ${ticket.servicio}</div>
+          <div class="help" style="margin-top:6px">Espera a que te llamen por pantalla por <b>nombres y apellido paterno</b>.</div>
+        `;
+
+        $("#dni").value = "";
+      }catch(err){
+        console.error(err);
+        estado.innerHTML = `<span class="err">❌ No se pudo validar el DNI. Verifica conexión/CORS y vuelve a intentar.</span>`;
+      }
+    });
+
+    // ================== Pantalla ==================
+    if(isPantalla){
+      renderPantalla();
+      $("#btnNext").addEventListener("click", callNext);
+      $("#btnClear").addEventListener("click", ()=>{
+        if(confirm("¿Limpiar cola y pantalla?")){
+          setCola([]);
+          setAtendiendo(null);
+          renderPantalla();
+        }
+      });
+    }
+
+    // ================== Sync entre ventanas ==================
+    window.addEventListener("storage", (ev)=>{
+      if(ev.key===KEY_COLA || ev.key===KEY_ATENDIENDO){
+        if(isPantalla) renderPantalla();
+      }
+    });
+
+    // Render inicial en kiosco (opcional: mostrar prev ticket)
+    if(!isPantalla){
+      const prev = getCola().slice(-1)[0];
+      if(prev){
+        const p = $("#ticketPrev");
+        p.classList.remove("hidden");
+        p.innerHTML = `
+          <div><b>Último ticket generado:</b> <span class="ticket-code">${prev.codigo}</span></div>
+          <div><b>Nombre:</b> ${prev.nombres} ${prev.apellidoPaterno}</div>
+          <div><b>Servicio:</b> ${prev.servicio}</div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
